@@ -1,6 +1,6 @@
 # responsive_util
-[![pub package](https://img.shields.io/pub/v/responsive_util.svg)](https://pub.dartlang.org/packages/sliding_up_panel)
-[![Platform](https://img.shields.io/badge/platform-android%20|%20ios-green.svg)](https://img.shields.io/badge/platform-Android%20%7C%20iOS-green.svg)
+[![pub package](https://img.shields.io/pub/v/responsive_util.svg)](https://pub.dartlang.org/packages/responsive_util)
+[![Platform](https://img.shields.io/badge/platform-android%20|%20ios-green.svg)](https://pub.dartlang.org/packages/responsive_util)
 
 A wrapper that provides draggable manipulation of a widget's size to test it's responsive design.
 
