@@ -21,11 +21,11 @@ class ResponsiveUtil extends StatefulWidget {
   /// The widget we are resizing, typically a Scaffold.
   final Widget child;
 
-  /// If false, the build function returns the child
-  final bool enabled;
+  /// If True, the build function returns the child
+  final bool disabled;
 
   ResponsiveUtil(
-      {Key key, @required this.child, this.onResize, this.enabled = true});
+      {Key key, @required this.child, this.onResize, this.disabled = false});
 
   @override
   _ResponsiveUtil createState() => _ResponsiveUtil();
@@ -43,73 +43,75 @@ class _ResponsiveUtil extends State<ResponsiveUtil> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onPanDown: (details) {
-        setState(() {
-          pressed = true;
-        });
-      },
-      onPanEnd: (details) {
-        setState(() {
-          resizedWidth = (resizedWidth >
-                  MediaQuery.of(context).size.width - kEdgeSnapPadding)
-              ? null
-              : resizedWidth;
-          resizedHeight = (resizedHeight >
-                  MediaQuery.of(context).size.height - kEdgeSnapPadding)
-              ? null
-              : resizedHeight;
-          pressed = false;
-        });
-        widget.onResize(Size(resizedWidth, resizedHeight));
-      },
-      onPanUpdate: (details) {
-        setState(() {
-          resizedWidth = details.globalPosition.dx;
-          resizedHeight = details.globalPosition.dy;
-        });
-        widget.onResize(Size(resizedWidth, resizedHeight));
-      },
-      child: Stack(
-        children: <Widget>[
-          SizedBox(
-            height: (resizedHeight == null ||
-                    resizedHeight > MediaQuery.of(context).size.height)
-                ? MediaQuery.of(context).size.height
-                : resizedHeight,
-            width: (resizedWidth == null ||
-                    resizedWidth > MediaQuery.of(context).size.width)
-                ? MediaQuery.of(context).size.width
-                : resizedWidth,
-            child: widget.child,
-          ),
-          Positioned(
-            left: resizedWidth ?? MediaQuery.of(context).size.width,
-            top: resizedHeight ?? MediaQuery.of(context).size.height,
-            child: cornerButton(context),
-          ),
-          Positioned(
-            left: resizedWidth ?? MediaQuery.of(context).size.width,
-            top: resizedHeight ?? MediaQuery.of(context).size.height,
-            child: Transform.translate(
-              offset: Offset((-kCornerButtonSize / 2) - 104,
-                  (-kCornerButtonSize / 2) + 18),
-              child: Material(
-                color: Theme.of(context).primaryColor,
-                child: (resizedWidth != null || resizedHeight != null)
-                    ? Text(
-                        'H: ${resizedHeight?.round() ?? MediaQuery.of(context).size.height.round()}    W: ${resizedWidth?.round() ?? MediaQuery.of(context).size.width.round()}',
-                        style: TextStyle(
-                          color: Colors.white,
-                        ),
-                      )
-                    : null,
-              ),
+    return widget.disabled
+        ? widget.child
+        : GestureDetector(
+            onPanDown: (details) {
+              setState(() {
+                pressed = true;
+              });
+            },
+            onPanEnd: (details) {
+              setState(() {
+                resizedWidth = (resizedWidth >
+                        MediaQuery.of(context).size.width - kEdgeSnapPadding)
+                    ? null
+                    : resizedWidth;
+                resizedHeight = (resizedHeight >
+                        MediaQuery.of(context).size.height - kEdgeSnapPadding)
+                    ? null
+                    : resizedHeight;
+                pressed = false;
+              });
+              widget.onResize(Size(resizedWidth, resizedHeight));
+            },
+            onPanUpdate: (details) {
+              setState(() {
+                resizedWidth = details.globalPosition.dx;
+                resizedHeight = details.globalPosition.dy;
+              });
+              widget.onResize(Size(resizedWidth, resizedHeight));
+            },
+            child: Stack(
+              children: <Widget>[
+                SizedBox(
+                  height: (resizedHeight == null ||
+                          resizedHeight > MediaQuery.of(context).size.height)
+                      ? MediaQuery.of(context).size.height
+                      : resizedHeight,
+                  width: (resizedWidth == null ||
+                          resizedWidth > MediaQuery.of(context).size.width)
+                      ? MediaQuery.of(context).size.width
+                      : resizedWidth,
+                  child: widget.child,
+                ),
+                Positioned(
+                  left: resizedWidth ?? MediaQuery.of(context).size.width,
+                  top: resizedHeight ?? MediaQuery.of(context).size.height,
+                  child: cornerButton(context),
+                ),
+                Positioned(
+                  left: resizedWidth ?? MediaQuery.of(context).size.width,
+                  top: resizedHeight ?? MediaQuery.of(context).size.height,
+                  child: Transform.translate(
+                    offset: Offset((-kCornerButtonSize / 2) - 104,
+                        (-kCornerButtonSize / 2) + 18),
+                    child: Material(
+                      color: Theme.of(context).primaryColor,
+                      child: (resizedWidth != null || resizedHeight != null)
+                          ? Text(
+                              'H: ${resizedHeight?.round() ?? MediaQuery.of(context).size.height.round()}    W: ${resizedWidth?.round() ?? MediaQuery.of(context).size.width.round()}',
+                              style: TextStyle(
+                                color: Colors.white,
+                              ),
+                            )
+                          : null,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
-    );
+          );
   }
 
   Widget cornerButton(context) {
