@@ -15,7 +15,7 @@ class ResponsiveUtil extends StatefulWidget {
   /// A callback that provides adjusted window size.
   ///
   /// Layouts with conditionals using a device's screen size should replace
-  /// MediaQuery.of(context).size references with the provided size during testing
+  /// wrapperSize references with the provided size during testing
   final void Function(Size) onResize;
 
   /// The widget we are resizing, typically a Scaffold.
@@ -32,102 +32,133 @@ class ResponsiveUtil extends StatefulWidget {
 }
 
 class _ResponsiveUtil extends State<ResponsiveUtil> {
-  /// The distance from the device's right edge.
-  double resizedWidth;
+  /// The size to be updated by dragging.
+  Size resizedSize;
 
-  /// The distance from the device's bottom edge.
-  double resizedHeight;
+  /// The parent widget's max-constraint size
+  Size wrapperSize;
+
+  /// The position of the parent widget's bottom-right corner
+  Offset globalPosition;
 
   /// True if screen is being resized.
   bool pressed = false;
+
+  GlobalKey wrapperKey = GlobalKey();
+  @override
+  void initState() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => findWidgetPosition());
+    super.initState();
+  }
+
+  void findWidgetPosition() {
+    final renderObject = wrapperKey.currentContext?.findRenderObject();
+    var translation = renderObject?.getTransformTo(null)?.getTranslation();
+    if (translation != null && renderObject.paintBounds != null) {
+      globalPosition = Offset(renderObject.paintBounds.width + translation.x,
+          renderObject.paintBounds.height + translation.y);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return widget.disabled
         ? widget.child
-        : GestureDetector(
-            onPanDown: (details) {
-              setState(() {
-                pressed = true;
-              });
-            },
-            onPanEnd: (details) {
-              setState(() {
-                resizedWidth = (resizedWidth >
-                        MediaQuery.of(context).size.width - kEdgeSnapPadding)
-                    ? null
-                    : resizedWidth;
-                resizedHeight = (resizedHeight >
-                        MediaQuery.of(context).size.height - kEdgeSnapPadding)
-                    ? null
-                    : resizedHeight;
-                pressed = false;
-              });
-              widget.onResize(Size(resizedWidth, resizedHeight));
-            },
-            onPanUpdate: (details) {
-              setState(() {
-                resizedWidth = details.globalPosition.dx;
-                resizedHeight = details.globalPosition.dy;
-              });
-              widget.onResize(Size(resizedWidth, resizedHeight));
-            },
-            child: Stack(
-              children: <Widget>[
-                SizedBox(
-                  height: (resizedHeight == null ||
-                          resizedHeight > MediaQuery.of(context).size.height)
-                      ? MediaQuery.of(context).size.height
-                      : resizedHeight,
-                  width: (resizedWidth == null ||
-                          resizedWidth > MediaQuery.of(context).size.width)
-                      ? MediaQuery.of(context).size.width
-                      : resizedWidth,
-                  child: widget.child,
-                ),
-                Positioned(
-                  left: resizedWidth ?? MediaQuery.of(context).size.width,
-                  top: resizedHeight ?? MediaQuery.of(context).size.height,
-                  child: cornerButton(context),
-                ),
-                Positioned(
-                  left: resizedWidth ?? MediaQuery.of(context).size.width,
-                  top: resizedHeight ?? MediaQuery.of(context).size.height,
-                  child: Transform.translate(
-                    offset: Offset((-kCornerButtonSize / 2) - 104,
-                        (-kCornerButtonSize / 2) + 18),
-                    child: Material(
-                      color: Theme.of(context).primaryColor,
-                      child: (resizedWidth != null || resizedHeight != null)
-                          ? Text(
-                              'H: ${resizedHeight?.round() ?? MediaQuery.of(context).size.height.round()}    W: ${resizedWidth?.round() ?? MediaQuery.of(context).size.width.round()}',
-                              style: TextStyle(
-                                color: Colors.white,
-                              ),
-                            )
-                          : null,
+        : LayoutBuilder(
+            key: wrapperKey,
+            builder: (context, constraints) {
+              wrapperSize = Size(constraints.maxWidth, constraints.maxHeight);
+              return Stack(
+                children: <Widget>[
+                  SizedBox(
+                    height: (resizedSize?.height == null ||
+                            resizedSize.height > wrapperSize.height)
+                        ? wrapperSize.height
+                        : resizedSize.height,
+                    width: (resizedSize?.width == null ||
+                            resizedSize.width > wrapperSize.width)
+                        ? wrapperSize.width
+                        : resizedSize.width,
+                    child: widget.child,
+                  ),
+                  Positioned(
+                    left: resizedSize?.width ?? wrapperSize.width,
+                    top: resizedSize?.height ?? wrapperSize.height,
+                    child: cornerButton(context),
+                  ),
+                  Positioned(
+                    left: resizedSize?.width ?? wrapperSize.width,
+                    top: resizedSize?.height ?? wrapperSize.height,
+                    child: Transform.translate(
+                      offset: Offset((-kCornerButtonSize / 2) - 104,
+                          (-kCornerButtonSize / 2) + 18),
+                      child: Material(
+                        color: Theme.of(context).primaryColor,
+                        child: (resizedSize?.width != null ||
+                                resizedSize?.height != null)
+                            ? Text(
+                                'H: ${resizedSize.height?.round() ?? wrapperSize.height.round()}    W: ${resizedSize.width?.round() ?? wrapperSize.width.round()}',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                ),
+                              )
+                            : null,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              );
+            },
           );
   }
 
   Widget cornerButton(context) {
     return Transform.translate(
       offset: Offset(-kCornerButtonSize / 2, -kCornerButtonSize / 2),
-      child: Container(
-        width: kCornerButtonSize,
-        height: kCornerButtonSize,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(kCornerButtonSize),
-          color: Theme.of(context).primaryColor.withOpacity(pressed ? .5 : .3),
-        ),
-        child: Center(
-          child: CircleAvatar(
-            radius: kCornerButtonSize / 4,
-            backgroundColor: Theme.of(context).primaryColor,
+      child: GestureDetector(
+        onPanDown: (details) {
+          setState(() {
+            pressed = true;
+          });
+        },
+        onPanEnd: (details) {
+          setState(() {
+            resizedSize = Size(
+              (resizedSize.width > wrapperSize.width - kEdgeSnapPadding)
+                  ? null
+                  : resizedSize.width,
+              (resizedSize.height > wrapperSize.height - kEdgeSnapPadding)
+                  ? null
+                  : resizedSize.height,
+            );
+
+            pressed = false;
+          });
+          if (widget.onResize != null) widget.onResize(resizedSize);
+        },
+        onPanUpdate: (details) {
+          setState(() {
+            resizedSize = Size(
+                wrapperSize.width -
+                    (globalPosition.dx - details.globalPosition.dx),
+                wrapperSize.height -
+                    (globalPosition.dy - details.globalPosition.dy));
+          });
+          if (widget.onResize != null) widget.onResize(resizedSize);
+        },
+        child: Container(
+          width: kCornerButtonSize,
+          height: kCornerButtonSize,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(kCornerButtonSize),
+            color:
+                Theme.of(context).primaryColor.withOpacity(pressed ? .5 : .3),
+          ),
+          child: Center(
+            child: CircleAvatar(
+              radius: kCornerButtonSize / 4,
+              backgroundColor: Theme.of(context).primaryColor,
+            ),
           ),
         ),
       ),
