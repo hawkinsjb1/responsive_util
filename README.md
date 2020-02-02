@@ -1,5 +1,5 @@
 # responsive_util
-[![pub package](https://img.shields.io/pub/v/sliding_up_panel.svg)](https://pub.dartlang.org/packages/sliding_up_panel)
+[![pub package](https://img.shields.io/pub/v/responsive_util.svg)](https://pub.dartlang.org/packages/sliding_up_panel)
 [![Platform](https://img.shields.io/badge/platform-android%20|%20ios-green.svg)](https://img.shields.io/badge/platform-Android%20%7C%20iOS-green.svg)
 
 A wrapper that provides draggable manipulation of a widget's size to test it's responsive design.
@@ -21,5 +21,3 @@ Wrap a widget you would like to resize such as a `Scaffold` with a `ResponsiveUt
 | `child` | The Widget to resize |
 |`onResize`| For conditional layouts that rely on `MediaQuery` rather than `LayoutBuilder` to determine available space, use `onResize` to obtain a virtual screen `Size`.  |
 | `disabled` | If `True`, bypasses all functionality |
-<br>
-<br>

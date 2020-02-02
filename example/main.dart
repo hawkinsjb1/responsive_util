@@ -1,4 +1,3 @@
-/*
 import 'package:flutter/material.dart';
 import 'package:responsive_util/responsive_util.dart';
 
@@ -43,10 +42,11 @@ class _MyHomePageState extends State<MyHomePage> {
           title: Text(widget.title),
         ),
         body: GridView.count(
-          /// This is a GridView that shrinks from 3 to 1 columns based on available width.
+          /// This is a GridView that shrinks from 3 to 2 columns based on available width.
           /// 
-          /// Because we are using a [ResponsiveUtil] to test, we replace the MediaQueries 
-          /// with the size provided by [onResize] when available
+          /// If we want to use [MediaQuery] to determine available space, we replace the .size calls with
+          /// with the size provided by [onResize] when available. This can be avoided if you use a [LayoutBuilder]
+          /// which will provide the correct sizing in its constraints
           crossAxisCount: (_testMediaQuerySize?.width??MediaQuery.of(context).size.width) > 300 ? 3 : ((_testMediaQuerySize?.width??MediaQuery.of(context).size.width) > 180 ? 2 : 1),
           children: List.generate(100, (index) {
             return Center(
@@ -61,4 +61,3 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 }
-*/
