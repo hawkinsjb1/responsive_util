@@ -6,13 +6,14 @@ A wrapper that provides draggable manipulation of a widget's size to test it's r
 
 <p>
   <img width="205px" alt="Example" src="https://raw.githubusercontent.com/hawkinsjb1/responsive_util/master/assets/example.gif"/>
+  <img width="205px" alt="Example" src="https://raw.githubusercontent.com/hawkinsjb1/responsive_util/master/assets/example2.gif"/>
 </p>
 
 
 <br>
 
 ## Usage
-Wrap a widget you would like to resize such as a `Scaffold` with a `ResponsiveUtil` and observe the behavior of its contents as you shrink its boundaries by dragging from the bottom right.
+Wrap a widget such as a `Scaffold` with a `ResponsiveUtil` and resize it by dragging from the bottom right.
 
 <br>
 
@@ -21,3 +22,4 @@ Wrap a widget you would like to resize such as a `Scaffold` with a `ResponsiveUt
 | `child` | The Widget to resize |
 |`onResize`| For conditional layouts that rely on `MediaQuery` rather than `LayoutBuilder` to determine available space, use `onResize` to obtain a virtual screen `Size`.  |
 | `disabled` | If `True`, bypasses all functionality |
+| `scrollController` | Required for Widgets that exist in some ScrollView |

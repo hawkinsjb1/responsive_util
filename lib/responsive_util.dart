@@ -21,11 +21,17 @@ class ResponsiveUtil extends StatefulWidget {
   /// The widget we are resizing, typically a Scaffold.
   final Widget child;
 
-  /// If True, the build function returns the child
+  /// If True, the build function returns the child.
   final bool disabled;
 
+  /// Needed to properly determine a widget's global position in a scrollview. 
+  final ScrollController scrollController;
+
   ResponsiveUtil(
-      {Key key, @required this.child, this.onResize, this.disabled = false});
+      {Key key, @required this.child, this.onResize, this.disabled = false, this.scrollController})
+      : super(key: key) {
+    assert(this.child != null);
+  }
 
   @override
   _ResponsiveUtil createState() => _ResponsiveUtil();
@@ -45,6 +51,7 @@ class _ResponsiveUtil extends State<ResponsiveUtil> {
   bool pressed = false;
 
   GlobalKey wrapperKey = GlobalKey();
+
   @override
   void initState() {
     WidgetsBinding.instance.addPostFrameCallback((_) => findWidgetPosition());
@@ -55,60 +62,63 @@ class _ResponsiveUtil extends State<ResponsiveUtil> {
     final renderObject = wrapperKey.currentContext?.findRenderObject();
     var translation = renderObject?.getTransformTo(null)?.getTranslation();
     if (translation != null && renderObject.paintBounds != null) {
-      globalPosition = Offset(renderObject.paintBounds.width + translation.x,
-          renderObject.paintBounds.height + translation.y);
+      setState(() {
+        wrapperSize = Size(
+            renderObject.paintBounds.width, renderObject.paintBounds.height);
+        globalPosition = Offset(renderObject.paintBounds.width + translation.x,
+            renderObject.paintBounds.height + translation.y);
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return widget.disabled
-        ? widget.child
-        : LayoutBuilder(
+    return widget.disabled || wrapperSize == null
+        ? LayoutBuilder(
             key: wrapperKey,
-            builder: (context, constraints) {
-              wrapperSize = Size(constraints.maxWidth, constraints.maxHeight);
-              return Stack(
-                children: <Widget>[
-                  SizedBox(
-                    height: (resizedSize?.height == null ||
-                            resizedSize.height > wrapperSize.height)
-                        ? wrapperSize.height
-                        : resizedSize.height,
-                    width: (resizedSize?.width == null ||
-                            resizedSize.width > wrapperSize.width)
-                        ? wrapperSize.width
-                        : resizedSize.width,
-                    child: widget.child,
-                  ),
-                  Positioned(
-                    left: resizedSize?.width ?? wrapperSize.width,
-                    top: resizedSize?.height ?? wrapperSize.height,
-                    child: cornerButton(context),
-                  ),
-                  Positioned(
-                    left: resizedSize?.width ?? wrapperSize.width,
-                    top: resizedSize?.height ?? wrapperSize.height,
-                    child: Transform.translate(
-                      offset: Offset((-kCornerButtonSize / 2) - 104,
-                          (-kCornerButtonSize / 2) + 18),
-                      child: Material(
-                        color: Theme.of(context).primaryColor,
-                        child: (resizedSize?.width != null ||
-                                resizedSize?.height != null)
-                            ? Text(
-                                'H: ${resizedSize.height?.round() ?? wrapperSize.height.round()}    W: ${resizedSize.width?.round() ?? wrapperSize.width.round()}',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                ),
-                              )
-                            : null,
-                      ),
+            builder: (context, snapshot) {
+              return widget.child;
+            },
+          )
+        : Container(
+            child: Stack(
+              children: <Widget>[
+                SizedBox(
+                  height: (resizedSize?.height == null)
+                      ? wrapperSize.height
+                      : resizedSize.height,
+                  width: (resizedSize?.width == null)
+                      ? wrapperSize.width
+                      : resizedSize.width,
+                  child: widget.child,
+                ),
+                Positioned(
+                  left: resizedSize?.width ?? wrapperSize.width,
+                  top: resizedSize?.height ?? wrapperSize.height,
+                  child: cornerButton(context),
+                ),
+                Positioned(
+                  left: resizedSize?.width ?? wrapperSize.width,
+                  top: resizedSize?.height ?? wrapperSize.height,
+                  child: Transform.translate(
+                    offset: Offset((-kCornerButtonSize / 2) - 104,
+                        (-kCornerButtonSize / 2) + 18),
+                    child: Material(
+                      color: Theme.of(context).primaryColor,
+                      child: (resizedSize?.width != null ||
+                              resizedSize?.height != null)
+                          ? Text(
+                              'H: ${resizedSize.height?.round() ?? wrapperSize.height.round()}    W: ${resizedSize.width?.round() ?? wrapperSize.width.round()}',
+                              style: TextStyle(
+                                color: Colors.white,
+                              ),
+                            )
+                          : null,
                     ),
                   ),
-                ],
-              );
-            },
+                ),
+              ],
+            ),
           );
   }
 
@@ -124,10 +134,13 @@ class _ResponsiveUtil extends State<ResponsiveUtil> {
         onPanEnd: (details) {
           setState(() {
             resizedSize = Size(
-              (resizedSize.width > wrapperSize.width - kEdgeSnapPadding)
+              (resizedSize.width > wrapperSize.width - kEdgeSnapPadding &&
+                      resizedSize.width < wrapperSize.width + kEdgeSnapPadding)
                   ? null
                   : resizedSize.width,
-              (resizedSize.height > wrapperSize.height - kEdgeSnapPadding)
+              (resizedSize.height > wrapperSize.height - kEdgeSnapPadding &&
+                      resizedSize.height <
+                          wrapperSize.height + kEdgeSnapPadding)
                   ? null
                   : resizedSize.height,
             );
@@ -137,12 +150,13 @@ class _ResponsiveUtil extends State<ResponsiveUtil> {
           if (widget.onResize != null) widget.onResize(resizedSize);
         },
         onPanUpdate: (details) {
+          var newWidth = wrapperSize.width -
+              (globalPosition.dx - ((widget.scrollController?.position?.axis == Axis.horizontal) ? widget.scrollController.position.pixels : 0.0) - details.globalPosition.dx);
+          var newHeight = wrapperSize.height -
+              (globalPosition.dy - ((widget.scrollController?.position?.axis == Axis.vertical) ? widget.scrollController.position.pixels : 0.0) - details.globalPosition.dy);
           setState(() {
-            resizedSize = Size(
-                wrapperSize.width -
-                    (globalPosition.dx - details.globalPosition.dx),
-                wrapperSize.height -
-                    (globalPosition.dy - details.globalPosition.dy));
+            resizedSize = Size((newWidth > 12) ? newWidth : 12,
+                (newHeight > 12) ? newHeight : 12);
           });
           if (widget.onResize != null) widget.onResize(resizedSize);
         },

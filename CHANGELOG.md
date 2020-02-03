@@ -1,6 +1,10 @@
+## 0.2.0
+
+* Resizing now works in flex layouts and scrollviews, added scrollController, updated documentation.
+
 ## 0.1.2
 
-* Fixed gesture detector not using local bounds, resizing now works on all Widgets with constraints
+* Fixed gesture detector not using local bounds, resizing now works on all Widgets with constraints.
 
 ## 0.1.1
 
