@@ -2,7 +2,7 @@
 [![pub package](https://img.shields.io/pub/v/responsive_util.svg)](https://pub.dartlang.org/packages/responsive_util)
 [![Platform](https://img.shields.io/badge/platform-android%20|%20ios-green.svg)](https://pub.dartlang.org/packages/responsive_util)
 
-A Flutter widget that provides draggable manipulation of a child widget's size to test it's responsive design.
+A Flutter widget that provides drag resizing of a child widget's bounds to test it's responsive design.
 
 <p>
   <img width="205px" alt="Example" src="https://raw.githubusercontent.com/hawkinsjb1/responsive_util/master/assets/example.gif"/>
