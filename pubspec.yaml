@@ -1,7 +1,7 @@
 name: responsive_util
 description: A Flutter widget that allows drag resizing of its child's bounds to easily test responsive design.
 
-publish_to: 'responsive_util'
+publish_to: https://pub.dev/packages/responsive_util
 
 version: 0.3.0
 homepage: https://github.com/hawkinsjb1/responsive_util
