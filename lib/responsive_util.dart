@@ -18,19 +18,28 @@ class ResponsiveUtil extends StatefulWidget {
   /// wrapperSize references with the provided size during testing
   final void Function(Size) onResize;
 
-  /// The widget we are resizing, typically a Scaffold.
+  /// child Widget to be resized, typically wraps a Scaffold.
   final Widget child;
 
-  /// If True, the build function returns the child.
+  /// An alternative structure which directly provides updated [constraints]
+  /// Using [child] around a [LayoutBuilder] would have the same effect
+  final LayoutWidgetBuilder builder;
+
+  /// Needed to properly determine a widget's global position in a scrollview.
+  final ScrollController scrollController;
+  
   final bool disabled;
 
-  /// Needed to properly determine a widget's global position in a scrollview. 
-  final ScrollController scrollController;
-
   ResponsiveUtil(
-      {Key key, @required this.child, this.onResize, this.disabled = false, this.scrollController})
+      {Key key,
+      this.child,
+      this.builder,
+      this.onResize,
+      this.disabled = false,
+      this.scrollController})
       : super(key: key) {
-    assert(this.child != null);
+    assert((this.child != null || this.builder != null), 'You must provide a child widget or widget builder');
+    assert(!(this.child != null && this.builder != null), 'You cannot provide both a child and widget builder');
   }
 
   @override
@@ -39,16 +48,19 @@ class ResponsiveUtil extends StatefulWidget {
 
 class _ResponsiveUtil extends State<ResponsiveUtil> {
   /// The size to be updated by dragging.
-  Size resizedSize;
+  Size wrapperSize;
 
   /// The parent widget's max-constraint size
-  Size wrapperSize;
+  Size screenSize;
 
   /// The position of the parent widget's bottom-right corner
   Offset globalPosition;
 
-  /// True if screen is being resized.
+  /// True if finger is touching screen
   bool pressed = false;
+
+  /// True is wrapperSize != screenSize
+  bool shifted = false;
 
   GlobalKey wrapperKey = GlobalKey();
 
@@ -63,8 +75,9 @@ class _ResponsiveUtil extends State<ResponsiveUtil> {
     var translation = renderObject?.getTransformTo(null)?.getTranslation();
     if (translation != null && renderObject.paintBounds != null) {
       setState(() {
-        wrapperSize = Size(
+        screenSize = Size(
             renderObject.paintBounds.width, renderObject.paintBounds.height);
+        wrapperSize = screenSize;
         globalPosition = Offset(renderObject.paintBounds.width + translation.x,
             renderObject.paintBounds.height + translation.y);
       });
@@ -73,52 +86,54 @@ class _ResponsiveUtil extends State<ResponsiveUtil> {
 
   @override
   Widget build(BuildContext context) {
-    return widget.disabled || wrapperSize == null
+    return widget.disabled || screenSize == null
         ? LayoutBuilder(
             key: wrapperKey,
-            builder: (context, snapshot) {
-              return widget.child;
+            builder: (context, constraints) {
+              return (widget.child != null)
+                  ? widget.child
+                  : widget.builder(context, constraints);
             },
           )
-        : Container(
-            child: Stack(
-              children: <Widget>[
-                SizedBox(
-                  height: (resizedSize?.height == null)
-                      ? wrapperSize.height
-                      : resizedSize.height,
-                  width: (resizedSize?.width == null)
-                      ? wrapperSize.width
-                      : resizedSize.width,
-                  child: widget.child,
-                ),
+        : Stack(
+            children: <Widget>[
+              SizedBox(
+                height: wrapperSize.height,
+                width: wrapperSize.width,
+                child: (widget.child != null)
+                    ? widget.child
+                    : widget.builder(
+                        context,
+                        BoxConstraints(
+                          maxWidth: wrapperSize.width,
+                          maxHeight: wrapperSize.height,
+                        ),
+                      ),
+              ),
+              Positioned(
+                left: wrapperSize?.width,
+                top: wrapperSize?.height,
+                child: cornerButton(context),
+              ),
+              if (shifted || pressed)
                 Positioned(
-                  left: resizedSize?.width ?? wrapperSize.width,
-                  top: resizedSize?.height ?? wrapperSize.height,
-                  child: cornerButton(context),
-                ),
-                Positioned(
-                  left: resizedSize?.width ?? wrapperSize.width,
-                  top: resizedSize?.height ?? wrapperSize.height,
+                  left: wrapperSize.width,
+                  top: wrapperSize.height,
                   child: Transform.translate(
                     offset: Offset((-kCornerButtonSize / 2) - 104,
                         (-kCornerButtonSize / 2) + 18),
                     child: Material(
                       color: Theme.of(context).primaryColor,
-                      child: (resizedSize?.width != null ||
-                              resizedSize?.height != null)
-                          ? Text(
-                              'H: ${resizedSize.height?.round() ?? wrapperSize.height.round()}    W: ${resizedSize.width?.round() ?? wrapperSize.width.round()}',
-                              style: TextStyle(
-                                color: Colors.white,
-                              ),
-                            )
-                          : null,
+                      child: Text(
+                        'H: ${wrapperSize.height.round()}    W: ${wrapperSize.width.round()}',
+                        style: TextStyle(
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ],
-            ),
+            ],
           );
   }
 
@@ -132,33 +147,40 @@ class _ResponsiveUtil extends State<ResponsiveUtil> {
           });
         },
         onPanEnd: (details) {
+          var snapWidth = screenSize.width - kEdgeSnapPadding;
+          var snapHeight = screenSize.height - kEdgeSnapPadding;
           setState(() {
-            resizedSize = Size(
-              (resizedSize.width > wrapperSize.width - kEdgeSnapPadding &&
-                      resizedSize.width < wrapperSize.width + kEdgeSnapPadding)
-                  ? null
-                  : resizedSize.width,
-              (resizedSize.height > wrapperSize.height - kEdgeSnapPadding &&
-                      resizedSize.height <
-                          wrapperSize.height + kEdgeSnapPadding)
-                  ? null
-                  : resizedSize.height,
+            wrapperSize = Size(
+              (wrapperSize.width > snapWidth)
+                  ? screenSize.width
+                  : wrapperSize.width,
+              (wrapperSize.height > snapHeight)
+                  ? screenSize.height
+                  : wrapperSize.height,
             );
-
             pressed = false;
+            shifted = wrapperSize != screenSize;
           });
-          if (widget.onResize != null) widget.onResize(resizedSize);
+          if (widget.onResize != null) widget.onResize(wrapperSize);
         },
         onPanUpdate: (details) {
-          var newWidth = wrapperSize.width -
-              (globalPosition.dx - ((widget.scrollController?.position?.axis == Axis.horizontal) ? widget.scrollController.position.pixels : 0.0) - details.globalPosition.dx);
-          var newHeight = wrapperSize.height -
-              (globalPosition.dy - ((widget.scrollController?.position?.axis == Axis.vertical) ? widget.scrollController.position.pixels : 0.0) - details.globalPosition.dy);
+          var newWidth = screenSize.width -
+              (globalPosition.dx -
+                  ((widget.scrollController?.position?.axis == Axis.horizontal)
+                      ? widget.scrollController.position.pixels
+                      : 0.0) -
+                  details.globalPosition.dx);
+          var newHeight = screenSize.height -
+              (globalPosition.dy -
+                  ((widget.scrollController?.position?.axis == Axis.vertical)
+                      ? widget.scrollController.position.pixels
+                      : 0.0) -
+                  details.globalPosition.dy);
           setState(() {
-            resizedSize = Size((newWidth > 12) ? newWidth : 12,
+            wrapperSize = Size((newWidth > 12) ? newWidth : 12,
                 (newHeight > 12) ? newHeight : 12);
           });
-          if (widget.onResize != null) widget.onResize(resizedSize);
+          if (widget.onResize != null) widget.onResize(wrapperSize);
         },
         child: Container(
           width: kCornerButtonSize,
