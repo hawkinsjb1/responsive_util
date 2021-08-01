@@ -1,3 +1,7 @@
+## 0.4.0
+
+* added null-safety, fixed orientation issue, various bug fixes
+
 ## 0.3.0
 
 * Simplified logic, added an optional `builder` function which directly provides constraints as to using a separate LayoutBuilder as the child widget; Fixed issue causing edge snapping not to work.

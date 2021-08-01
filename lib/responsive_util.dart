@@ -16,116 +16,186 @@ class ResponsiveUtil extends StatefulWidget {
   ///
   /// Layouts with conditionals using a device's screen size should replace
   /// wrapperSize references with the provided size during testing
-  final void Function(Size) onResize;
+  final void Function(Size)? onResize;
 
   /// child Widget to be resized, typically wraps a Scaffold.
-  final Widget child;
+  final Widget? child;
 
   /// An alternative structure which directly provides updated [constraints]
   /// Using [child] around a [LayoutBuilder] would have the same effect
-  final LayoutWidgetBuilder builder;
+  final LayoutWidgetBuilder? builder;
 
   /// Needed to properly determine a widget's global position in a scrollview.
-  final ScrollController scrollController;
-  
+  final ScrollController? scrollController;
+
   final bool disabled;
 
   ResponsiveUtil(
-      {Key key,
+      {Key? key,
       this.child,
       this.builder,
       this.onResize,
       this.disabled = false,
       this.scrollController})
       : super(key: key) {
-    assert((this.child != null || this.builder != null), 'You must provide a child widget or widget builder');
-    assert(!(this.child != null && this.builder != null), 'You cannot provide both a child and widget builder');
+    assert((this.child != null || this.builder != null),
+        'You must provide a child widget or widget builder');
+    assert(!(this.child != null && this.builder != null),
+        'You cannot provide both a child and widget builder');
   }
 
   @override
   _ResponsiveUtil createState() => _ResponsiveUtil();
 }
 
-class _ResponsiveUtil extends State<ResponsiveUtil> {
+class _ResponsiveUtil extends State<ResponsiveUtil>
+    with WidgetsBindingObserver {
   /// The size to be updated by dragging.
-  Size wrapperSize;
+  Size? wrapperSize;
 
   /// The parent widget's max-constraint size
-  Size screenSize;
+  Size? originalSize;
 
   /// The position of the parent widget's bottom-right corner
-  Offset globalPosition;
+  Offset? globalPosition;
 
-  /// True if finger is touching screen
-  bool pressed = false;
-
-  /// True is wrapperSize != screenSize
-  bool shifted = false;
+  /// True if findWidgetPosition() successfully executed
+  bool initialized = false;
 
   GlobalKey wrapperKey = GlobalKey();
 
+  final ValueNotifier<bool> pressed = ValueNotifier(false);
+  final ValueNotifier<Offset?> dragDetails = ValueNotifier(null);
+
+  double get dragXDistance =>
+      originalSize!.width -
+      (globalPosition!.dx -
+          ((widget.scrollController != null &&
+                  widget.scrollController?.position.axis == Axis.horizontal)
+              ? widget.scrollController!.position.pixels
+              : 0.0) -
+          dragDetails.value!.dx);
+
+  double get dragYDistance =>
+      originalSize!.height -
+      (globalPosition!.dy -
+          ((widget.scrollController != null &&
+                  widget.scrollController?.position.axis == Axis.vertical)
+              ? widget.scrollController!.position.pixels
+              : 0.0) -
+          dragDetails.value!.dy);
+
+  Size get draggedWrapper => Size(dragXDistance, dragYDistance);
+
   @override
   void initState() {
-    WidgetsBinding.instance.addPostFrameCallback((_) => findWidgetPosition());
+    pressed.addListener(() {
+      if (!pressed.value && initialized) {
+        var diffX = (originalSize!.width - wrapperSize!.width).abs();
+        var diffY = (originalSize!.height - wrapperSize!.height).abs();
+        setState(() {
+          wrapperSize = Size(
+            (diffX <= kEdgeSnapPadding)
+                ? originalSize!.width
+                : wrapperSize!.width,
+            (diffY <= kEdgeSnapPadding)
+                ? originalSize!.height
+                : wrapperSize!.height,
+          );
+        });
+        if (widget.onResize != null) widget.onResize!(wrapperSize!);
+      }
+      setState(() {});
+    });
+    dragDetails.addListener(() {
+      if (!initialized || dragDetails.value == null) return;
+      if (!pressed.value) pressed.value = true;
+      setState(() => wrapperSize = draggedWrapper);
+      if (widget.onResize != null) widget.onResize!(wrapperSize!);
+    });
+    WidgetsBinding.instance?.addObserver(this);
+    WidgetsBinding.instance?.addPostFrameCallback((_) => findWidgetPosition());
     super.initState();
+  }
+
+  reset() => {
+        setState(() =>
+            wrapperSize = Size(originalSize!.width, originalSize!.height)),
+        pressed.value = false
+      };
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance?.removeObserver(this);
+    super.dispose();
   }
 
   void findWidgetPosition() {
     final renderObject = wrapperKey.currentContext?.findRenderObject();
-    var translation = renderObject?.getTransformTo(null)?.getTranslation();
-    if (translation != null && renderObject.paintBounds != null) {
+    var translation = renderObject?.getTransformTo(null).getTranslation();
+    if (translation != null && renderObject?.paintBounds != null) {
       setState(() {
-        screenSize = Size(
-            renderObject.paintBounds.width, renderObject.paintBounds.height);
-        wrapperSize = screenSize;
+        originalSize = Size(
+            renderObject!.paintBounds.width, renderObject.paintBounds.height);
+        wrapperSize = originalSize;
         globalPosition = Offset(renderObject.paintBounds.width + translation.x,
             renderObject.paintBounds.height + translation.y);
+        initialized = true;
       });
     }
   }
 
   @override
+  void didChangeMetrics() {
+    WidgetsBinding.instance?.addPostFrameCallback(
+      (_) => findWidgetPosition(),
+    );
+    super.didChangeMetrics();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return widget.disabled || screenSize == null
+    return widget.disabled || !initialized
         ? LayoutBuilder(
             key: wrapperKey,
             builder: (context, constraints) {
-              return (widget.child != null)
-                  ? widget.child
-                  : widget.builder(context, constraints);
+              return widget.child != null
+                  ? widget.child!
+                  : widget.builder!(context, constraints);
             },
           )
         : Stack(
+            key: wrapperKey,
             children: <Widget>[
               SizedBox(
-                height: wrapperSize.height,
-                width: wrapperSize.width,
-                child: (widget.child != null)
+                height: wrapperSize!.height,
+                width: wrapperSize!.width,
+                child: widget.child != null
                     ? widget.child
-                    : widget.builder(
+                    : widget.builder!(
                         context,
                         BoxConstraints(
-                          maxWidth: wrapperSize.width,
-                          maxHeight: wrapperSize.height,
+                          maxWidth: wrapperSize!.width,
+                          maxHeight: wrapperSize!.height,
                         ),
                       ),
               ),
               Positioned(
-                left: wrapperSize?.width,
-                top: wrapperSize?.height,
-                child: cornerButton(context),
+                left: wrapperSize!.width,
+                top: wrapperSize!.height,
+                child: CornerButton(pressed, dragDetails, () => reset()),
               ),
-              if (shifted || pressed)
+              if (wrapperSize != originalSize)
                 Positioned(
-                  left: wrapperSize.width,
-                  top: wrapperSize.height,
+                  left: wrapperSize!.width,
+                  top: wrapperSize!.height,
                   child: Transform.translate(
                     offset: Offset((-kCornerButtonSize / 2) - 104,
                         (-kCornerButtonSize / 2) + 18),
                     child: Material(
                       color: Theme.of(context).primaryColor,
                       child: Text(
-                        'H: ${wrapperSize.height.round()}    W: ${wrapperSize.width.round()}',
+                        'H: ${wrapperSize!.height.round()}    W: ${wrapperSize!.width.round()}',
                         style: TextStyle(
                           color: Colors.white,
                         ),
@@ -136,64 +206,54 @@ class _ResponsiveUtil extends State<ResponsiveUtil> {
             ],
           );
   }
+}
 
-  Widget cornerButton(context) {
+class CornerButton extends StatelessWidget {
+  final ValueNotifier<bool> pressed;
+  final ValueNotifier<Offset?> dragDetails;
+  final Function onDoubleTap;
+  CornerButton(this.pressed, this.dragDetails, this.onDoubleTap);
+
+  @override
+  Widget build(BuildContext context) {
     return Transform.translate(
       offset: Offset(-kCornerButtonSize / 2, -kCornerButtonSize / 2),
       child: GestureDetector(
-        onPanDown: (details) {
-          setState(() {
-            pressed = true;
-          });
-        },
-        onPanEnd: (details) {
-          var snapWidth = screenSize.width - kEdgeSnapPadding;
-          var snapHeight = screenSize.height - kEdgeSnapPadding;
-          setState(() {
-            wrapperSize = Size(
-              (wrapperSize.width > snapWidth)
-                  ? screenSize.width
-                  : wrapperSize.width,
-              (wrapperSize.height > snapHeight)
-                  ? screenSize.height
-                  : wrapperSize.height,
-            );
-            pressed = false;
-            shifted = wrapperSize != screenSize;
-          });
-          if (widget.onResize != null) widget.onResize(wrapperSize);
-        },
-        onPanUpdate: (details) {
-          var newWidth = screenSize.width -
-              (globalPosition.dx -
-                  ((widget.scrollController?.position?.axis == Axis.horizontal)
-                      ? widget.scrollController.position.pixels
-                      : 0.0) -
-                  details.globalPosition.dx);
-          var newHeight = screenSize.height -
-              (globalPosition.dy -
-                  ((widget.scrollController?.position?.axis == Axis.vertical)
-                      ? widget.scrollController.position.pixels
-                      : 0.0) -
-                  details.globalPosition.dy);
-          setState(() {
-            wrapperSize = Size((newWidth > 12) ? newWidth : 12,
-                (newHeight > 12) ? newHeight : 12);
-          });
-          if (widget.onResize != null) widget.onResize(wrapperSize);
-        },
-        child: Container(
-          width: kCornerButtonSize,
-          height: kCornerButtonSize,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(kCornerButtonSize),
-            color:
-                Theme.of(context).primaryColor.withOpacity(pressed ? .5 : .3),
-          ),
-          child: Center(
-            child: CircleAvatar(
-              radius: kCornerButtonSize / 4,
-              backgroundColor: Theme.of(context).primaryColor,
+        // unfortunately panning doesn't catch all events for some reason
+        // so 2 gestureDetectors must be used
+        onDoubleTap: () => onDoubleTap(),
+        onHorizontalDragStart: (details) => pressed.value = true,
+        onVerticalDragStart: (details) => pressed.value = true,
+        onHorizontalDragDown: (details) => pressed.value = true,
+        onVerticalDragDown: (details) => pressed.value = true,
+        onHorizontalDragCancel: () => pressed.value = false,
+        onVerticalDragCancel: () => pressed.value = false,
+        onHorizontalDragEnd: (details) => pressed.value = false,
+        onVerticalDragEnd: (details) => pressed.value = false,
+        onVerticalDragUpdate: (d) => dragDetails.value = d.globalPosition,
+        onHorizontalDragUpdate: (d) => dragDetails.value = d.globalPosition,
+        child: GestureDetector(
+          onTapUp: (t) => pressed.value = false,
+          onPanStart: (details) => pressed.value = true,
+          onPanDown: (details) => pressed.value = true,
+          onPanCancel: () => pressed.value = false,
+          onPanEnd: (details) => pressed.value = false,
+          onPanUpdate: (details) => details.globalPosition,
+          child: Container(
+            width: kCornerButtonSize,
+            height: kCornerButtonSize,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(kCornerButtonSize),
+              color: Theme.of(context)
+                  .colorScheme
+                  .onPrimary
+                  .withOpacity(pressed.value ? .5 : .3),
+            ),
+            child: Center(
+              child: CircleAvatar(
+                radius: kCornerButtonSize / 4,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+              ),
             ),
           ),
         ),

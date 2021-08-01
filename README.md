@@ -15,6 +15,8 @@ A Flutter widget that allows drag resizing of its child's bounds to easily test 
 ## Usage
 Wrap a widget such as a `Scaffold` with a `ResponsiveUtil` and resize it by dragging from the bottom right.
 
+Double-tap to reset bounds.
+
 <br>
 
 |  Properties  |   Description   |
