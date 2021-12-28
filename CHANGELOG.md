@@ -1,3 +1,7 @@
+## 0.4.1
+
+* added widget tests
+
 ## 0.4.0
 
 * added null-safety, fixed orientation issue, various bug fixes

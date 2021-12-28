@@ -3,7 +3,7 @@ description: A Flutter widget that allows drag resizing of its child's bounds to
 
 publish_to: https://pub.dev/packages/responsive_util
 
-version: 0.4.0
+version: 0.4.1
 homepage: https://github.com/hawkinsjb1/responsive_util
 
 environment:
@@ -16,5 +16,6 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  test: any
 
 flutter:
