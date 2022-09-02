@@ -89,8 +89,8 @@ class _ResponsiveUtil extends State<ResponsiveUtil>
 
   @override
   void initState() {
-    WidgetsBinding.instance?.addObserver(this);
-    WidgetsBinding.instance?.addPostFrameCallback((_) => findWidgetPosition());
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => findWidgetPosition());
 
     pressed.addListener(() {
       if (!pressed.value && initialized) {
@@ -128,7 +128,7 @@ class _ResponsiveUtil extends State<ResponsiveUtil>
 
   @override
   void dispose() {
-    WidgetsBinding.instance?.removeObserver(this);
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -149,7 +149,7 @@ class _ResponsiveUtil extends State<ResponsiveUtil>
 
   @override
   void didChangeMetrics() {
-    WidgetsBinding.instance?.addPostFrameCallback(
+    WidgetsBinding.instance.addPostFrameCallback(
       (_) => findWidgetPosition(),
     );
     super.didChangeMetrics();
